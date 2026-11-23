@@ -1,0 +1,13 @@
+# Notebook and data analysis
+jupyter
+numpy
+pandas
+matplotlib
+seaborn
+statsmodels
+
+# Modelling and explainability
+scikit-learn
+xgboost
+lightgbm
+shap
