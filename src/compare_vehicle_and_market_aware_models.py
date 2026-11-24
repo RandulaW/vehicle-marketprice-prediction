@@ -17,7 +17,6 @@ from price_prediction import get_models, make_model, score_model
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKET_DATA_PATH = ROOT / "data" / "processed" / "vehicle_market_model_data.csv"
-RESULTS_PATH = ROOT / "outputs" / "results" / "vehicle_market_model_results.csv"
 PREDICTIONS_PATH = ROOT / "outputs" / "results" / "vehicle_market_price_predictions.csv"
 
 
@@ -118,15 +117,12 @@ def main() -> None:
                 **later_scores,
             })
 
-    # Save results separately so the earlier vehicle-only results stay available.
+    # Keep row-level predictions for plots; aggregate scores are in the full experiment table.
     results = pd.DataFrame(result_rows)
-    RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    results.to_csv(RESULTS_PATH, index=False)
     predictions = pd.concat(prediction_frames, ignore_index=True)
     predictions.to_csv(PREDICTIONS_PATH, index=False)
 
     print(results.to_string(index=False, float_format=lambda value: f"{value:,.4f}"))
-    print(f"\nSaved results to {RESULTS_PATH.relative_to(ROOT)}")
     print(f"Saved row-level predictions to {PREDICTIONS_PATH.relative_to(ROOT)}")
     unseen_policy = sorted(
         set(later_test["import_policy_environment"].dropna())

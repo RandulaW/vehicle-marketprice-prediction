@@ -9,5 +9,7 @@ statsmodels
 # Modelling and explainability
 scikit-learn
 xgboost
-lightgbm
 shap
+
+# Local viva demo
+streamlit
