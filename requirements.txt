@@ -1,5 +1,6 @@
 # Notebook and data analysis
 jupyter
+nbconvert
 numpy
 pandas
 matplotlib

@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data" / "cleaned"
+DATA_DIR = ROOT / "data" / "processed"
 
 def inspect_dataset(path: Path, target: str) -> pd.DataFrame:
     # Read a cleaned file and show its period and target range.

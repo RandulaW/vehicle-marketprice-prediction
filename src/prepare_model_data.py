@@ -5,7 +5,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CLEAN_DIR = ROOT / "data" / "cleaned"
+CLEAN_DIR = ROOT / "data" / "processed"
 OUTPUT_PATH = ROOT / "data" / "processed" / "common_vehicle_model_data.csv"
 
 CATEGORY_COLUMNS = ["make", "model", "transmission", "fuel_type", "condition"]

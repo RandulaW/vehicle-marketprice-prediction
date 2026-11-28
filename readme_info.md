@@ -1,302 +1,236 @@
-# MSc Research Project Handover
+# Project notes and reproduction guide
 
-**Last updated:** 24 November 2026\
+**Last reviewed:** 28 November 2026
 **Research topic:** Explainable Machine Learning for Detecting Abnormal
-Used-Vehicle Prices in the Sri Lankan Market\
-**Purpose:** Working handover for Codex / VS Code and future ChatGPT
-sessions.
+Used-Vehicle Prices in the Sri Lankan Market
 
-## 1. Research objective
+This file records the project decisions and results needed to continue
+the work on another computer. `AGENTS.md` contains the working rules.
 
-Estimate expected asking prices for used vehicles in Sri Lanka and
-identify listings with unusually high or low prices relative to those
-expectations. An abnormal price is a deviation from a modelled
-expectation, **not evidence of fraud**.
+## Research aim
 
-## 2. Proposed methodology
+Estimate expected asking prices for used vehicles in Sri Lanka and flag
+listings that differ substantially from model estimates. A flag is a
+candidate for review, not evidence of fraud. SHAP explains model
+predictions; it is not an anomaly detector.
 
-### Stage 1 --- Expected asking-price modelling
+## Data sources and price decision
 
-Evaluate: - Linear Regression baseline - Random Forest - XGBoost or
-LightGBM
+| Dataset | Source file | Original coverage |
+|---|---|---|
+| Dataset 1: Sri Lanka Vehicle Ads | `vehicles.csv` | 258,888 rows; Cars category has 48,293 listings; listings from 2022-09-06 to 2023-04-02 |
+| Dataset 2: Sri Lankan Second Vehicle/Car Price | `car_price_dataset.csv` | 9,788 listings from 2024-12-03 to 2025-02-05 |
 
-Compare: - **Configuration A:** Vehicle/listing characteristics only. -
-**Configuration B:** Vehicle characteristics plus selected
-market-context variables.
+Sources: [Dataset 1](https://www.kaggle.com/datasets/ivantha/sri-lanka-vehicle-ads-dataset), [Dataset 2](https://www.kaggle.com/datasets/prasadnirmal/srilankan-second-vehiclecar-price-dataset).
 
-Potential vehicle features include make, model, manufacturing year,
-engine capacity, mileage, transmission, fuel type, condition, body type
-and location, subject to availability and quality.
+The project uses the user-approved working conversion
+`price_lkr = price_original * 100,000` for Dataset 2. This was adopted
+after reviewing the row values against plausible Sri Lankan listing
+prices. `price_original` remains unchanged. The dataset publisher does
+not independently document the unit, so Dataset 2 metrics and findings
+are conditional on the adopted conversion.
 
-Potential market-context variables: - Monthly average USD/LKR exchange
-rate from the Central Bank of Sri Lanka. - Monthly vehicle-transfer
-activity from the Department of Motor Traffic, if compatible data are
-available. - Categorical indicator for the prevailing
-vehicle-import-policy environment.
+## Cleaning and EDA completed
 
-Evaluate price models using MAE, RMSE and R².
+The notebook `notebooks/data_cleaning_&_EDA.ipynb` has 77 cells and
+covers data loading, inspection, cleaning and exploratory analysis for
+both datasets. Its saved outputs are retained.
 
-### Stage 2 --- Abnormal asking-price detection
+### Dataset 1
 
--   Compare actual asking prices with model-estimated expected prices.
--   Calculate residuals and/or relative deviations.
--   Calibrate abnormality thresholds using the model-error distribution.
--   Consider unusually high and unusually low deviations.
--   Apply an unsupervised method such as Local Outlier Factor (LOF) to
-    identify unusual listings based on their characteristics.
--   Compare residual-based flags with LOF results. Listings flagged by
-    both can be prioritised for review, but are not confirmed fraud.
+- Selected the Cars category and extracted attributes from `properties`
+  with index alignment.
+- Removed 203 listings with incomplete make, model or year details;
+  most had empty properties and appeared to be wanted/request listings.
+  Excluded `Other brand` as a scope decision; this may remove genuine
+  passenger vehicles and create selection bias.
+- Set engine capacities below 400 cc or above 6,000 cc to missing
+  (357 values); set mileage above 600,000 km to missing (96 values).
+- Removed 14 listings without usable prices and seven clearly
+  implausible prices: LKR 1, 2, 84, 1,234, 2,150, 1 billion and
+  1.98 billion.
+  Other unusual prices were retained for the anomaly research.
+- Set four manufacturing years later than listing dates to missing and
+  corrected a body-type text-encoding issue.
+- Checked exact duplicates; retained rare categories and missing body
+  types unless a specific data-quality reason applied. Body type is
+  missing for 4,146 listings.
+- Final cleaned data: **47,958 rows, 39 columns**. Price is positive and
+  complete; price range is LKR 38,500 to 249,000,000; median is LKR
+  5,100,000. Engine capacity has 357 missing values (remaining range
+  400-6,000 cc); mileage has 96 missing values (remaining range
+  0-600,000 km); four future years were set missing.
 
-Precision, recall and F1 require suitable labelled evaluation data.
-Manual review alone cannot establish recall/F1 without labels for
-flagged and unflagged records.
+### Dataset 2
 
-### Explainability
+- Standardized field names and converted dates and numeric columns;
+  retained rare categories and did not remove exact or near-duplicate
+  listings without justification.
+- Checked duplicate vehicle details manually as possible separate
+  advertisements; `Unnamed: 0` is an original index, not a model feature.
+- Kept `price_original` and created `price_lkr` using the adopted
+  conversion above.
+- Final cleaned data: **9,788 rows, 18 columns**. No missing prices,
+  non-positive prices, future manufacturing years, negative mileage or
+  exact duplicate rows were found in the final notebook checks.
+- Under the adopted conversion, `price_lkr` ranges from LKR 265,000 to
+  LKR 79,000,000, with a median of LKR 4,300,000.
+- During model-table preparation, mileage above 600,000 km is set to
+  missing (33 Dataset 2 records); those listings are retained.
+- Dataset 2 median values are year 2009, engine capacity 1,300 cc,
+  mileage 176,000 km and `price_original` 43 (LKR 4,300,000 after the
+  adopted conversion).
 
-Use SHAP to explain model predictions and selected flagged listings.
-SHAP explains predictions; it is not an anomaly-detection method.
+EDA includes numerical and categorical distributions, price against
+year and mileage, Spearman correlations, linear trend lines and LOWESS
+smoothers. Dataset 2 smoothing groups by feature value and uses median
+price to avoid the earlier LOWESS warning.
 
-### Cross-period considerations
+## Modelling and evaluation
 
-The two datasets cover separated periods, not a continuous time series.
-Market variables should characterise the relevant listing periods. Avoid
-unsupported continuous-trend or causal claims.
+`src/prepare_model_data.py` builds a common vehicle table by appending
+the two periods. It derives vehicle age from listing year and
+manufacturing year, standardizes category text, and preserves source
+and period labels. Common model features are:
 
-## 3. Datasets
+- Numeric: vehicle age, engine capacity and mileage.
+- Categorical: make, model, transmission, fuel type and condition.
+- Market-aware configuration: listing-month USD/LKR average and import
+  policy environment.
 
-### Dataset 1 --- Sri Lanka Vehicle Ads Dataset
+Body type is Dataset 1 only; location and equipment fields were not used
+in the common model feature set. DMT monthly transfer counts are kept in
+the market context file but excluded from models because December 2024
+coverage is unavailable.
 
-Source:
-https://www.kaggle.com/datasets/ivantha/sri-lanka-vehicle-ads-dataset\
-Original file: `vehicles.csv`\
-Initial size: 258,888 rows × 26 columns.\
-Approximate listing-date range: 2022-09-06 to 2023-04-02.\
-Cars category: 48,293 records.
+Imputation and one-hot encoding are part of each model pipeline and fit
+on training rows only. Numeric scaling is used for linear and
+regularized models; tree models do not need it. Evaluation includes a
+chronological Dataset 1 validation, Dataset 2 as a separate later-period
+test, forward-chaining cross-validation on Dataset 1, and separate
+shuffled cross-validation and random 80/20 split comparisons on the
+combined table. Random splits can mix the separated periods and do not
+replace the later-period test. Features were chosen from shared fields
+and research relevance; permutation importance and collinearity were
+reviewed after fitting, with no separate automated feature-selection
+step. The two source periods are not continuous, so results do not
+establish causal effects.
 
-The original `properties` column contains dictionary-like vehicle
-attributes, including Condition, Brand, Model, Mileage, Engine capacity,
-Year of Manufacture, Transmission, Fuel type, Body type and Model year.
+The numeric feature collinearity checks found a maximum VIF of 1.62 in
+the Dataset 1 training rows. This did not indicate a strong numeric
+collinearity concern for the features checked.
 
-### Dataset 2 --- Sri Lankan Second Vehicle/Car Price Dataset
+Models include Linear Regression, log-target Linear Regression, Ridge,
+Random Forest and XGBoost. Both vehicle-only and vehicle-plus-market
+configurations were compared where applicable.
 
-Source:
-https://www.kaggle.com/datasets/prasadnirmal/srilankan-second-vehiclecar-price-dataset\
-Original file: `car_price_dataset.csv`\
-Initial size: 9,788 rows × 17 columns.\
-Approximate listing-date range: 2024-12-03 to 2025-02-05.
+### Results currently saved
 
-Original fields include Brand, Model, YOM, Engine (cc), Gear, Fuel Type,
-Millage(KM), Town, Date, Leasing, Condition, equipment fields and Price.
+Values below come from `outputs/results/` and are rounded. MAE is in
+LKR; lower MAE is better. R-squared is not an accuracy percentage.
 
-**Dataset 2 price scale:** The project uses `price_lkr = price_original x
-100,000` as its adopted working conversion, based on the observed price
-values and Sri Lankan listing ranges reviewed during the project.
-`price_original` is preserved. The source's unit label has not been
-independently documented, so Dataset 2 results depend on this conversion.
+| Evaluation | Model/configuration | MAE | R-squared |
+|---|---|---:|---:|
+| Dataset 1 forward-chaining CV, mean | Log-target Linear Regression, vehicle-only | 1.235 million | 0.865 |
+| Dataset 2 later-period test | Random Forest, vehicle + market context | 1.614 million | 0.541 |
+| Dataset 2 later-period test | Random Forest, vehicle-only | 1.616 million | 0.533 |
+| Dataset 2 later-period test | Tuned XGBoost, depth 8 | 1.799 million | 0.495 |
+| Dataset 2 later-period test | Log-target Linear Regression, vehicle-only | 1.840 million | -0.019 |
 
-## 4. Work completed so far
+No model leads every evaluation. Market context gives only a small
+improvement for Random Forest on the Dataset 2 test. Dataset 2 results
+remain conditional on the price conversion and the shift in time and
+vehicle-label coverage.
 
-The latest notebook contains initial cleaning and descriptive analysis
-for both datasets. Treat the latest notebook and its saved outputs as
-the primary record of exact cell-level progress. Do not repeat completed
-work without checking the notebook first.
+## Anomaly analysis and explanations
 
-### Dataset 1 --- cleaning decisions and results
+`src/analyze_price_anomalies.py` uses relative prediction residuals
+with thresholds calibrated from out-of-fold Dataset 1 residuals and
+compares them with LOF on vehicle age, engine capacity and mileage. The
+current summary reports:
 
--   Selected the Cars category.
--   Extracted vehicle attributes from nested `properties` using
-    corrected index-aligned extraction.
--   Removed 203 records with incomplete make/model/year details, mostly
-    wanted/request advertisements with empty properties.
--   Excluded `Other brand` records as a scope decision. This may exclude
-    genuine passenger vehicles and should be acknowledged as a
-    limitation / possible selection bias.
--   Set engine capacity below 400 cc or above 6,000 cc to missing rather
-    than deleting listings (357 affected values).
--   Set mileage above 600,000 km to missing rather than deleting
-    listings (96 affected values).
--   Removed 14 records with missing or non-usable prices because price
-    is the modelling target.
--   Removed 7 clearly implausible prices: LKR 1, 2, 84, 1,234, 2,150, 1
-    billion and 1.98 billion.
--   Retained other unusual but potentially genuine price observations.
-    Do not automatically remove statistical price outliers; they are
-    central to this research.
--   Set four manufacturing-year values later than their listing dates to
-    missing.
--   Corrected the body-type text encoding issue for `Coupé/Sports`.
--   Kept rare categories and missing body types unless a justified
-    decision was made.
--   Checked exact duplicate records.
+| Evaluation/model | Low-price flags | High-price flags | LOF profile flags |
+|---|---:|---:|---:|
+| Dataset 1 validation, Random Forest | 100 | 107 | 477 |
+| Dataset 1 validation, XGBoost depth 8 | 165 | 167 | 477 |
+| Dataset 2 test, Random Forest | 105 | 1,505 | 275 |
+| Dataset 2 test, XGBoost depth 8 | 133 | 3,123 | 275 |
 
-Documented cleaned Dataset 1 size: **47,958 rows**. Previously reported
-validation: - `price_lkr`: no missing values; positive values only. -
-`engine_cc`: 357 missing; remaining range 400--6,000. - `mileage_km`: 96
-missing; remaining range 0--600,000. - `year`: four future-year values
-set to missing; no future manufacturing years remain. - Price range
-after exclusions: LKR 38,500--249,000,000. - Median year: 2012; median
-engine capacity: 1,500 cc; median mileage: 98,000 km; median price: LKR
-5,100,000.
+The high Dataset 2 flag counts may reflect cross-period underprediction
+and domain shift as well as unusual listings. Flags are review
+candidates, not labels. There are no suitable verified labels for
+precision, recall or F1.
 
-### Dataset 2 --- initial cleaning and analysis
+`src/explain_model_predictions.py` writes global and selected-listing
+SHAP summaries. `src/plot_model_results.py` creates static PNG figures
+under `outputs/figures/`, including model performance,
+cross-validation, actual-versus-predicted, feature diagnostics, anomaly
+and SHAP plots. Tables are under `outputs/results/`, including
+`model_method_experiments.csv`, `selected_model_tuning.csv`,
+`price_anomaly_candidates.csv` and SHAP summaries.
 
-Original columns were renamed to consistent names such as `make`,
-`model`, `year`, `engine_cc`, `transmission`, `fuel_type`, `mileage_km`,
-`location`, `listing_date`, `condition` and `price_original`.
+## Market context and limitations
 
-Numeric fields and dates were converted to appropriate types, and
-categorical strings were stripped.
+- Market factors are joined by **listing month**, not manufacturing
+  year.
+- Dataset 1 covers only the `suspended` policy label and USD/LKR rates
+  from 321.4 to 363.4. Later periods have unseen policy categories
+  and/or rates outside that training range; their effects are not
+  reliably learned.
+- December 2024 DMT transfer count is missing, so transfer counts are
+  not model features.
+- The datasets cover separated periods. Temporal change and different
+  label coverage limit generalization claims.
+- LOF is unsupervised and identifies unusual feature profiles; it does
+  not establish unusual prices.
+- The Streamlit demo was added, but a successful rendered form has not
+  yet been confirmed after an initial blank browser view.
+- The proposal PDF is a local file and is not included in Git. Copy it
+  separately to another device if needed for report writing.
 
-Previously reported checks: - 9,788 records. - No missing values in the
-checked fields / final cleaned columns. - No non-positive original
-prices. - No future manufacturing years. - No negative mileage. - No
-exact duplicate rows. - Some records share selected vehicle details but
-may represent separate advertisements; do not remove them solely for
-similarity. - `Unnamed: 0` is an original index column and should not be
-used as a model feature. - Rare categories such as Electric and NEW were
-retained.
+## Remaining work
 
-`price_lkr` uses the adopted x100,000 working conversion. `price_original`
-remains unchanged in the cleaned dataset. Model results for Dataset 2 use
-`price_lkr` and should be interpreted under this conversion.
+- Run `python run_project.py` end to end after the path updates and
+  confirm regenerated model, anomaly and SHAP outputs.
+- Resolve any Streamlit startup issue and confirm the form works.
+- Review flagged listings as research candidates, then write the final
+  report with the conversion, period-shift and data-coverage limitations.
 
-### Exploratory data analysis completed
+## Running on another device
 
-The notebook includes descriptive analysis for both datasets: -
-Numerical distributions / histograms. - Categorical frequency plots. -
-Asking price against manufacturing year and mileage. - Spearman
-correlation heatmaps. - Linear regression trend lines and LOWESS
-smoothers.
+The raw datasets and generated outputs are excluded from Git. After
+cloning, copy these source files into `data/raw/`:
 
-Dataset 2 price analysis uses the adopted `price_lkr` conversion; retain
-the source scale in `price_original` for reference.
-
-The LOWESS warning encountered for Dataset 2 was addressed by grouping
-by each feature and taking the median price per distinct feature value
-before smoothing.
-
-## 5. Current status and next work
-
-**Completed:** Cleaning and EDA; compatibility review; vehicle-only and
-market-aware datasets; leakage-safe preprocessing; model comparison and
-time-based validation; a small tuning comparison; feature importance and
-collinearity checks; residual flags, LOF comparison and SHAP summaries.
-
-**Current model results:** Random Forest with market context has the
-lowest MAE on the Dataset 2 later-period test (about LKR 1.61 million,
-R-squared 0.54). Log-target Linear Regression has the lowest mean MAE
-across Dataset 1 forward-chaining folds (about LKR 1.23 million).
-Performance depends on the evaluation period; no one model leads every
-comparison.
-
-**Next:** Review flagged listings as candidates for investigation, then
-write up the methods, results and limitations. Dataset 2 scores use the
-adopted x100,000 price conversion. DMT transfer counts were not included
-because the required December 2024 value was unavailable.
-
-### Sample prediction demo
-
-Run `python src/sample_vehicle_check.py` to enter a listing month, vehicle
-details and asking price. The script looks up the exchange rate and policy
-label from `market_context_monthly.csv`, then reports price and LOF flags
-and SHAP contributions. It accepts only months in that file. Dataset 1
-contains one policy label and a higher exchange-rate range than later
-months, so later-period estimates have those limitations. Category labels
-are matched without regard to capitalization; unseen labels may be ignored.
-
-For the form-based demo, install requirements and run
-`streamlit run src/sample_vehicle_app.py`. The fitted model is cached while
-the app is open so it is not retrained for every form submission.
-
-## 6. Important research cautions
-
--   Do not delete high/low prices solely because they are statistical
-    outliers; abnormal prices are the research focus.
--   Prefer setting questionable feature values to missing rather than
-    deleting otherwise useful listings when appropriate.
--   Document all exclusions and cleaning rules.
--   `Other brand` exclusion is a scope choice and possible source of
-    selection bias.
--   Engine and mileage thresholds are pragmatic cleaning rules, not
-    universal truths.
--   Dataset periods are separated, not a continuous time series.
--   Dataset 2 price unit remains unverified.
--   Abnormal price does not establish fraud.
--   SHAP explains predictions; it does not detect anomalies.
--   Precision/recall/F1 require suitable labels.
--   Do not claim causal effects from descriptive market-period
-    comparisons.
-
-## 7. Recommended project organisation
-
-``` text
-vehicle-price-research/
-├── data/
-│   ├── raw/
-│   └── processed/
-├── notebooks/
-│   └── data_cleaning_&_EDA.ipynb
-├── src/
-│   ├── data_cleaning.py
-│   ├── data_integration.py
-│   ├── market_factors.py
-│   ├── preprocessing.py
-│   ├── feature_engineering.py
-│   ├── price_prediction.py
-│   ├── anomaly_detection.py
-│   └── explainability.py
-├── outputs/
-│   ├── figures/
-│   └── results/
-├── README.md
-├── AGENTS.md
-└── requirements.txt
+```text
+vehicles.csv
+car_price_dataset.csv
 ```
 
-This is a proposed structure, not a requirement to create every file
-immediately. Build incrementally.
+The runner regenerates cleaned and processed tables, model results and
+figures; the previous device's generated files are not needed.
 
-## 8. Collaboration preferences
+Then, from the project folder:
 
--   Keep explanations short and practical.
--   Provide **one code cell or implementation step at a time** and wait
-    for the user to share the output before proceeding.
--   Include a short natural comment at the beginning of each code cell.
--   Add Markdown headings when starting a new main section or meaningful
-    subsection, but do not add headings unnecessarily.
--   Use graphs when they materially help inspect distributions or
-    explain results.
--   Preserve existing notebook work and section numbering.
--   Do not repeat completed work.
--   Do not make major changes to the notebook or data without explaining
-    the proposed change first.
--   Do not silently invent data, assumptions, research results or source
-    facts.
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe run_project.py
+```
 
-## 9. Instructions for Codex
+The runner executes the notebook into
+`outputs/notebooks/data_cleaning_&_EDA_executed.ipynb`, then runs the
+data preparation, modelling, diagnostics, SHAP and plotting scripts in
+order. It stops if a step fails. Model comparison and tuning can take
+time. To run the notebook interactively instead, use:
 
-Before making changes: 1. Inspect the repository, notebook, datasets and
-this handover. 2. Read `AGENTS.md`. 3. Summarise the current project
-state and identify inconsistencies between this handover and the
-notebook. 4. Do not overwrite or restructure the existing notebook
-without approval. 5. Do not infer or silently convert Dataset 2 prices.
-Keep original values and ask for confirmation / evidence before using a
-conversion. 6. Work incrementally, with reproducible scripts and clear
-input/output paths. 7. Keep raw data unchanged; write cleaned outputs to
-`data/processed/`. 8. Avoid committing large datasets or sensitive
-material to a public GitHub repository. Use an appropriate private
-repository or Git LFS / external storage where needed. 9. Do not scrape
-marketplace data unless the user confirms permission and the site's
-terms allow the intended collection and research use. 10. Explain each
-proposed step briefly and wait for approval before major implementation
-changes.
+```powershell
+.\.venv\Scripts\jupyter.exe notebook "notebooks/data_cleaning_&_EDA.ipynb"
+```
 
-## 10. Initial prompt for Codex
+The command-line sample check and Streamlit form demo are optional and
+run separately:
 
-> Read `AGENTS.md`, this handover document, and inspect the existing
-> notebook and datasets. Do not modify anything yet. First report the
-> current repository structure, notebook progress, available data files,
-> discrepancies between the notebook and this handover, and the safest
-> next step. Keep the report concise. Do not repeat completed cleaning
-> or EDA. Do not assume Dataset 2's price unit or convert it without
-> verification.
+```powershell
+.\.venv\Scripts\python.exe src/sample_vehicle_check.py
+.\.venv\Scripts\python.exe -m streamlit run src/sample_vehicle_app.py
+```

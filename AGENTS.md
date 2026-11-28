@@ -1,80 +1,92 @@
-# AGENTS.md --- MSc Used-Vehicle Price Research
+# Project instructions
 
-## Project context
+## Research purpose
 
-Research topic: **Explainable Machine Learning for Detecting Abnormal
-Used-Vehicle Prices in the Sri Lankan Market**.
+Estimate asking prices for used vehicles in Sri Lanka and identify
+listings whose prices differ substantially from model estimates. A flag
+is a review signal, not proof of fraud.
 
-The project estimates expected asking prices and identifies listings
-with unusually high or low prices relative to model expectations. An
-abnormal price is not proof of fraud.
+Read `readme_info.md` before changing the project. It records the data
+decisions, completed work, current results, reproduction steps and open
+limitations. The notebook and scripts are the source of truth for the
+implementation.
 
-Read `readme_info.md` before making project
-changes. It records the research methodology, data decisions, progress
-and known limitations.
+## Decisions to preserve
 
-## Working rules
+- Dataset 2 uses the project-approved working conversion
+  `price_lkr = price_original * 100,000`. Keep `price_original`. The
+  dataset source does not independently document its unit, so describe
+  results involving Dataset 2 as conditional on this conversion. Do not
+  change the conversion without reliable source evidence or a direct
+  user instruction.
+- Dataset 1 and Dataset 2 cover separate periods. Do not present them as
+  a continuous time series or make causal claims about market factors.
+- Vehicle listings are evaluated using vehicle-only features and, in a
+  separate configuration, vehicle features plus listing-month USD/LKR
+  and import-policy context. DMT vehicle-transfer counts are retained
+  in context data but excluded from model features because December 2024
+  coverage is missing.
+- Price outliers are relevant to the research. Do not remove them solely
+  because they are statistically unusual. Apply only justified data
+  quality rules and document them.
+- Residual-based price flags and LOF profile flags are different
+  signals. SHAP explains predictions; it does not detect anomalies.
+- There are no verified anomaly labels. Do not report precision,
+  recall or F1 as measured model performance.
+- The feature list is based on shared fields and research relevance.
+  Permutation importance and collinearity were reviewed after fitting;
+  there was no separate automated feature-selection step.
 
-1.  **Inspect before editing.** Review the repository, notebook,
-    datasets and handover before proposing changes.
-2.  **Do not repeat completed work.** Check the existing notebook and
-    outputs first.
-3.  **Do not overwrite the notebook** or reorganise it without explicit
-    approval.
-4.  **Preserve raw data.** Never modify source CSVs in place. Write
-    derived files to `data/processed/`.
-5.  **Dataset 2 price unit is unconfirmed.** Never assume lakhs or
-    millions, and never silently convert `price_original`. Ask for
-    confirmation or reliable source evidence first.
-6.  **Do not force dataset integration.** Check price units, feature
-    definitions, data types, periods and coverage before combining.
-7.  **Market factors come later.** Prepare vehicle datasets first.
-    Collect and join exchange-rate, vehicle-transfer and import-policy
-    context only when vehicle data are ready and compatible.
-8.  **Do not remove price outliers automatically.** Unusual asking
-    prices are central to the research. Apply justified data-quality
-    exclusions only, and document them.
-9.  **Avoid data leakage.** Fit imputers, encoders, scalers and other
-    preprocessing transformations on training data only; apply fitted
-    transformations to validation/test data.
-10. **Keep methods aligned with the proposal.** Compare Linear
-    Regression, Random Forest and XGBoost or LightGBM; compare
-    vehicle-only features with vehicle-plus-market-context features.
-11. **Keep anomaly detection distinct from price prediction.** Use model
-    residuals / relative deviations and compare with LOF. SHAP explains
-    model predictions; it does not detect anomalies.
-12. **Do not report precision, recall or F1 without suitable labelled
-    evaluation data.**
-13. **Avoid causal claims.** The two datasets cover separated periods,
-    not a continuous time series.
-14. **Respect data-source terms.** Do not scrape marketplace listings
-    unless collection and research use are permitted and the user
-    approves.
-15. **Protect repository contents.** Do not commit large datasets,
-    credentials or private information to a public repository. Recommend
-    a private repository or suitable data storage when needed.
+## Data and file handling
 
-## Coding and communication preferences
+- Raw files are `vehicles.csv` and `car_price_dataset.csv` in
+  `data/raw/`. They are not included in Git; do not add large source
+  datasets or private files to the public repository.
+- The notebook writes cleaned data to `data/processed/`. Scripts use
+  that directory for derived modelling tables. Keep raw data unchanged.
+- Preserve the existing notebook sections, analysis and saved outputs.
+  Change it only for a requested purpose; do not replace or reorganize
+  it wholesale.
+- Keep generated tables, figures and the executed notebook under
+  `outputs/`. Do not delete prior results unless they are confirmed
+  redundant and removal is requested.
+- Do not scrape listings unless the user has approved it and the source
+  terms permit the intended research use.
 
--   Keep explanations short and practical.
--   Work one step at a time; do not generate a large pipeline unless
-    requested.
--   When working interactively, provide one code cell at a time and wait
-    for the user's output.
--   Put a short, natural comment at the start of every code cell.
--   Use clear names, reproducible paths and straightforward Python.
--   Add notebook headings only for meaningful new sections; preserve
-    existing numbering.
--   Explain proposed changes before making major edits.
--   Do not invent data, results, source facts or assumptions.
+## Reproducible workflow
 
-## Initial Codex task
+From the repository root, `python run_project.py` executes the cleaning
+and EDA notebook to a separate copy, then runs data preparation, model
+comparisons, tuning, feature diagnostics, anomaly analysis, SHAP and
+plotting in order. It requires the two raw CSVs in `data/raw/` and the
+packages in `requirements.txt`. It does not launch the interactive
+terminal or Streamlit demos.
 
-Do not edit files on the first pass. Inspect the repository, notebook
-and datasets, then provide a concise status report: - Current project
-structure. - Notebook sections and completed work. - Available raw and
-processed datasets. - Any mismatch with the handover document. - Any
-unresolved issue, especially Dataset 2's price unit. - One recommended
-next step.
+Important files:
 
-Wait for the user's approval before substantial changes.
+- `notebooks/data_cleaning_&_EDA.ipynb`: cleaning and EDA.
+- `src/prepare_model_data.py`: common vehicle table and vehicle age.
+- `src/prepare_market_context.py` and `src/integrate_market_context.py`:
+  market context preparation and joining by listing month.
+- `src/model_preprocessing.py`: features, preprocessing and time splits.
+- `src/price_prediction.py`,
+  `src/compare_vehicle_and_market_aware_models.py`,
+  `src/compare_model_method_experiments.py` and
+  `src/tune_selected_models.py`: model evaluation.
+- `src/analyze_model_features.py`, `src/analyze_price_anomalies.py`,
+  `src/explain_model_predictions.py` and `src/plot_model_results.py`:
+  diagnostics and figures.
+- `src/sample_vehicle_check.py` and `src/sample_vehicle_app.py`:
+  interactive demonstrations; run separately.
+
+## Working style
+
+- Inspect the notebook, data and current outputs before repeating work.
+- Avoid data leakage: fit imputers, encoders and scalers on training
+  rows only.
+- Keep code readable, comments brief and natural, and paths reproducible.
+- Preserve established names and structure unless a change is needed.
+- When the user is running notebook cells interactively, provide one
+  step at a time and wait for their output.
+- Keep replies short, explain decisions plainly, and do not invent
+  results or source facts.

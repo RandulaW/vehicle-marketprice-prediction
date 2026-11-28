@@ -1,4 +1,4 @@
-"""Train the linear regression baseline and report period-based scores."""
+"""Compare vehicle-only models on the period-based evaluation splits."""
 
 import numpy as np
 import pandas as pd
