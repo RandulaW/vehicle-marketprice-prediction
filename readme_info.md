@@ -171,14 +171,32 @@ and SHAP plots. Tables are under `outputs/results/`, including
 
 ## Market context and limitations
 
+- `src/prepare_market_context.py` contains a fixed, manually compiled
+  monthly table; it does not download live data. It now covers
+  September 2022 through September 2026, the latest published monthly
+  exchange-rate period checked on 28 November 2026. Exchange-rate, DMT
+  and policy source URLs are stored with each row. The sources are the
+  CBSL monthly average spot-rate series, DMT monthly transfer reports
+  and official import-policy gazettes.
+- The DMT 2025 report lists 12,649 car transfers in January and 12,716
+  in February. The project table previously had these values reversed;
+  they have been corrected. Verified March-December 2025 counts have
+  also been added. December 2024 remains missing, and 2026 transfer
+  counts are not in the available monthly report. DMT counts remain
+  excluded from the model features.
 - Market factors are joined by **listing month**, not manufacturing
   year.
 - Dataset 1 covers only the `suspended` policy label and USD/LKR rates
   from 321.4 to 363.4. Later periods have unseen policy categories
   and/or rates outside that training range; their effects are not
   reliably learned.
-- December 2024 DMT transfer count is missing, so transfer counts are
-  not model features.
+- The demo can now look up monthly context through September 2026.
+  Policy labels for the 2026 duty changes are descriptive context; those
+  periods are not represented in model training. Newer-date demo results
+  are out-of-period estimates and have not been accuracy-tested.
+- The December 2024 DMT count is missing from the current project table.
+  The DMT site lists a 2024 monthly-transfer report; verify its December
+  car count before considering transfer counts as model features.
 - The datasets cover separated periods. Temporal change and different
   label coverage limit generalization claims.
 - LOF is unsupervised and identifies unusual feature profiles; it does

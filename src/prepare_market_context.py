@@ -19,13 +19,33 @@ MARKET_CONTEXT = [
     ("2023-03", 329.5, 10042, "suspended"),
     ("2023-04", 321.4, 7271, "suspended"),
     ("2024-12", 291.7, None, "suspension_then_reopening"),
-    ("2025-01", 296.2, 12716, "reopening_transition"),
-    ("2025-02", 296.8, 12649, "reopened_under_controls"),
+    ("2025-01", 296.2, 12649, "reopening_transition"),
+    ("2025-02", 296.8, 12716, "reopened_under_controls"),
+    ("2025-03", 295.9, 13752, "reopened_under_controls"),
+    ("2025-04", 298.5, 14657, "reopened_under_controls"),
+    ("2025-05", 299.4, 14851, "reopened_under_controls"),
+    ("2025-06", 299.9, 17393, "reopened_under_controls"),
+    ("2025-07", 301.1, 18903, "reopened_under_controls"),
+    ("2025-08", 301.5, 17804, "reopened_under_controls"),
+    ("2025-09", 302.2, 16773, "reopened_under_controls"),
+    ("2025-10", 303.1, 16560, "reopened_under_controls"),
+    ("2025-11", 306.3, 14468, "reopened_under_controls"),
+    ("2025-12", 309.2, 16496, "reopened_under_controls"),
+    ("2026-01", 309.7, None, "reopened_under_controls"),
+    ("2026-02", 309.4, None, "reopened_under_controls"),
+    ("2026-03", 311.9, None, "reopened_under_controls"),
+    ("2026-04", 316.5, None, "reopened_with_revised_duties"),
+    ("2026-05", 324.9, None, "reopened_with_vehicle_duty_surcharge"),
+    ("2026-06", 334.4, None, "reopened_with_vehicle_duty_surcharge"),
+    ("2026-07", 336.0, None, "reopened_with_vehicle_duty_surcharge"),
+    ("2026-08", 332.9, None, "reopened_with_surcharge_extended"),
+    ("2026-09", 329.5, None, "reopened_with_surcharge_extended"),
 ]
 
 CBSL_SOURCE = (
-    "https://www.cbsl.gov.lk/en/node/146; "
-    "https://research.dulajmendis.com/data/exchange-rates/us-dollar-usd/"
+    "https://www.cbsl.gov.lk/en/rates-and-indicators/exchange-rates; "
+    "https://www.cbsl.gov.lk/sites/default/files/cbslweb_documents/statistics/sheets/IF_Monthly_Average_Exchange_Rates_September%202026.xlsx; "
+    "https://macrolab.lk/data/series/LK.EXT.FX_MONTHLY.USD.AVG.M/"
 )
 DMT_SOURCES = {
     "2022": "https://dmt.gov.lk/images/2023/transfer/Monthly_Transfer_of_Vehicles_2022.pdf",
@@ -35,7 +55,10 @@ DMT_SOURCES = {
 POLICY_SOURCE = (
     "https://documents.gov.lk/view/extra-gazettes/2024/12/2415-35_E.pdf; "
     "https://documents.gov.lk/view/extra-gazettes/2025/1/2421-04_E.pdf; "
-    "https://documents.gov.lk/view/extra-gazettes/2025/1/2421-44_E.pdf"
+    "https://documents.gov.lk/view/extra-gazettes/2025/1/2421-44_E.pdf; "
+    "https://documents.gov.lk/view/egz/2026/5/2488-56_E.pdf; "
+    "https://treasury.gov.lk/si/api/file/04b45c52-3ded-4621-86c7-b8c67455c9d8; "
+    "https://www.treasury.gov.lk/acts-gazettes-circulars"
 )
 
 
@@ -63,7 +86,9 @@ def main() -> None:
             "dmt_car_transfers": transfer_count,
             "import_policy_environment": policy,
             "exchange_rate_source": CBSL_SOURCE,
-            "transfer_count_source": source_for_transfers(month),
+            "transfer_count_source": (
+                source_for_transfers(month) if transfer_count is not None else ""
+            ),
             "policy_source": POLICY_SOURCE,
         }
         for month, exchange_rate, transfer_count, policy in MARKET_CONTEXT

@@ -24,8 +24,9 @@ implementation.
 - Vehicle listings are evaluated using vehicle-only features and, in a
   separate configuration, vehicle features plus listing-month USD/LKR
   and import-policy context. DMT vehicle-transfer counts are retained
-  in context data but excluded from model features because December 2024
-  coverage is missing.
+  in context data but excluded from model features while the December
+  2024 count is missing from the project table. Check the DMT 2024 report
+  before considering transfer counts for modelling.
 - Price outliers are relevant to the research. Do not remove them solely
   because they are statistically unusual. Apply only justified data
   quality rules and document them.
