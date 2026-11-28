@@ -120,6 +120,7 @@ def main() -> None:
     # Keep row-level predictions for plots; aggregate scores are in the full experiment table.
     results = pd.DataFrame(result_rows)
     predictions = pd.concat(prediction_frames, ignore_index=True)
+    PREDICTIONS_PATH.parent.mkdir(parents=True, exist_ok=True)
     predictions.to_csv(PREDICTIONS_PATH, index=False)
 
     print(results.to_string(index=False, float_format=lambda value: f"{value:,.4f}"))

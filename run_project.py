@@ -8,6 +8,11 @@ import sys
 ROOT = Path(__file__).resolve().parent
 NOTEBOOK_PATH = ROOT / "notebooks" / "data_cleaning_&_EDA.ipynb"
 OUTPUT_NOTEBOOK_DIR = ROOT / "outputs" / "notebooks"
+OUTPUT_DIRS = [
+    OUTPUT_NOTEBOOK_DIR,
+    ROOT / "outputs" / "results",
+    ROOT / "outputs" / "figures",
+]
 RAW_DATA_FILES = [
     ROOT / "data" / "raw" / "vehicles.csv",
     ROOT / "data" / "raw" / "car_price_dataset.csv",
@@ -28,7 +33,10 @@ def main() -> None:
             print(f"- {path.relative_to(ROOT)}")
         raise SystemExit(1)
 
-    OUTPUT_NOTEBOOK_DIR.mkdir(parents=True, exist_ok=True)
+    # Output folders are ignored by Git, so create them on a fresh clone.
+    for output_dir in OUTPUT_DIRS:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
     run_step(
         "Clean data and run EDA notebook",
         [
