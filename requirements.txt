@@ -5,11 +5,7 @@ pandas
 matplotlib
 seaborn
 statsmodels
-
-# Modelling and explainability
 scikit-learn
 xgboost
 shap
-
-# Local viva demo
 streamlit
